@@ -6,4 +6,4 @@ This project examines the episode scripts of the tv series Star Wars the Clone W
 
 ## Navigating this repository
 
-The files 'ep_scripts.json' and 'eps_df.csv' are the datafiles. The other files are the code an report. 
+The files 'ep_scripts.json' and 'eps_df.csv' are the datafiles. The files'get_episode_scripts.py' and 'get_eps_data.py' are the scripts used to scrape the episode scripts and  the episode ratings data. The other files are the code an report. 
