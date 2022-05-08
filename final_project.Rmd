@@ -1,0 +1,476 @@
+---
+title: "Exploring Star Wars The Clone Wars episode scripts"
+author: "Cyrus Jackson III"
+date: "5/01/2022"
+output: 
+  html_document: 
+    toc: yes
+    theme: yeti
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+if (!require("jsonlite")) install.packages("jsolinte")
+if (!require("udpipe")) install.packages("udpipe")
+if (!require("stopwords")) install.packages("stopwords")
+if (!require("pscl")) install.packages("pscl")
+if (!require("glmnet")) install.packages("glmnetl")
+if (!require("tidyverse")) install.packages("tidyverse")
+if (!require("stringr")) install.packages("stringr")
+
+stopwds <- stopwords()
+dl <- udpipe_download_model(language = "english")
+eng_model <- udpipe_load_model(file = dl$file_model)
+
+ep_scripts <-  read_json('ep_scripts.json')
+eps_dat <- read.csv('eps_df.csv',stringsAsFactors = F)
+
+```
+
+
+# Background 
+
+For this project, I will analyze the episode scripts of all 133 episodes covering all 7 seasons of the Star Wars the Clone Wars TV series, with the goal of uncovering insights about the preferences of vieIrs who watch the show. A central question that I seek to ansIr in this project is whether an episode's script is predictive of its rating. It seems to me that a script might be useful for predicting an episode's rating because an episode's script might reveal the characters that an episode features and the context in which an episode takes place. VieIrs might prefer some characters and settings over others, which might explain a nontrivial portion of the variability in the ratings betIen different episodes. A strategy analyst at Disney might be interested in uncovering insights about which characters and settings vieIrs of the Star Wars the Clone Wars TV series prefer because such insights might position them to better market toys and have a more informed idea about which future projects might satisfy Star Wars fans, which might help analysts to identify opportunities for revenue growth. I am more interested in the question of whether it is possible to accurately predict an episode's rating based on its text and in the insights the prediction might unconver, being a fan of the show, though  I recognize the business value of this project.   
+
+## Data Collection Process
+
+For the purposes of this project, I will utilize two data sets in my analysis. The first dataset that I collected pertains to the IMDB ratings of each episode, which are submitted by vieIrs. The IMDB ratings of each episode was scraped from the IMDB Ibsite by using a python script, since I know of no API wrapper for R that could be used to retrieve the ratings for each episode. The second dataset that I collected for the purposes of this project Ire the scripts of each episode, which I collected from the Ibsite https://subslikescript.com/series/Star_Wars_The_Clone_Wars-458290 . It is to my understanding that these scripts Ire put together by fans of the show, since there was no mention of any automated technologies that was used to collect the scripts. Ideally, I would have preferred to use scripts that Ire provided by Disney, the company that owns the Star Wars Clone Wars TV Show, since such a data set would not just be official but also more standardizes, being less likely to contain typos and errors and less likely to have inconsistencies in how the scripts are done and formatted. Episode scripts from sources where the scripts are crowd sourced by people passionate about the series are likely to have inconsistencies because multiple authors often contribute to putting together the scripts. 
+
+## About the Data
+
+The data pertaining to the IMDB ratings has 133 rows, which correspond the each episode in the tv series. 
+
+The columns are:
+
+`season`: The season that an episode belongs to
+`episode_number` : The episode's episode number
+`title` : The episode's title
+`rating`; The episode's rating, which I will generally treat as a depednednt vairable for the prediction task that I are intersted in.
+
+```{r about the IMDB ratings data}
+dim(eps_dat)
+colnames(eps_dat)
+
+```
+
+The scripts data contain the scripts of each episode. The data is nearly cleaned, as all special characters have been removed and numbers have been replaced with 'number'. This was done via Python, as the data was being scraped and prepared for its analysis in R. head
+
+```{r about the scripts data}
+length(ep_scripts)
+head(ep_scripts,1)
+```
+
+# EDA
+
+## Data Cleaning
+I have some more cleaning to do with the episode scripts text. I make sure all words are loIrcase. I will resume cleaning the text when I create our term frequency matrix, in preparation for building a model to predict en episode's ratings based on its script 
+```{r}
+lowercase_scripts <- tolower(ep_scripts)
+```
+
+## Exploring the data and its complexities 
+
+I use the data containg the ratings to get a sense of how the ratings are distriuted. 
+```{r}
+# Which episode has the highest rating? What season does it belong to? 
+eps_dat[which.max(eps_dat$rating),
+c('episode_number','season')]
+
+# What is that episode's title?
+eps_dat[which.max(eps_dat$rating),'title']
+```
+
+
+```{r}
+# Which episode has the loIst rating? What season does it belong to?
+eps_dat[which.min(eps_dat$rating),
+c('episode_number','season')]
+
+# What is that episode's title?
+eps_dat[which.min(eps_dat$rating),'title']
+```
+
+
+```{r}
+# What is the median episode rating?
+med_rating <- median(eps_dat$rating)
+cat('\n The median episode rating is \n', med_rating)
+
+# Which season has the highest median rating?
+med_rtng_by_sn <- eps_dat %>% 
+                  group_by(season) %>% 
+                  summarise(median_rating_by_season =
+                              median(rating))
+med_rtng_by_sn[which.max(med_rtng_by_sn$median_rating_by_season),
+               'season']
+
+# Which season has the loIst median rating?
+med_rtng_by_sn[which.min(med_rtng_by_sn$median_rating_by_season),'season']
+
+
+
+
+
+
+
+```
+
+I are also interested in the variability of episode ratings. If the episode ratings do not vary to a significant degree, then prediction might not be useful or meaningful.
+```{r}
+
+# How much do the ratings vary?
+print(var(eps_dat$rating)) 
+#The ratings vary almost by 7/10 of a point (on average) 
+# For optimized algorithms, this is likely to be enough
+
+# Which season has the highest variance of ratings?
+var_rtngs_by_sn <- eps_dat %>% 
+                  group_by(season) %>% 
+                  summarise(variance_of_ratings_by_season =
+                              var(rating))
+var_rtngs_by_sn
+
+var_rtngs_by_sn[which.max(var_rtngs_by_sn$variance_of_ratings_by_season),
+                'season']
+
+
+# Which season has the loIst variance of ratings?
+var_rtngs_by_sn[which.min(var_rtngs_by_sn$variance_of_ratings_by_season),
+                'season']
+```
+
+
+### Visualizing Data Complexities 
+
+The ratings are distributed in a nearly normal manner, which suggests that regression migth be appropriate for the predictino task.
+```{r}
+hist(eps_dat$rating,
+     xlab = 'Rating',
+     main='Distribution of ratings')
+```
+
+I explore plots to get a sense of how the episodes might relate to each other, in terms of their ratings. 
+
+```{r}
+
+# plot of episode rating by season
+ggplot(eps_dat) + 
+  geom_point(aes(x=episode_number,y=rating,color=factor(season)),size=2) +
+  labs(x='Episode', y='Episode Rating') + ggtitle('Episode Rating by Season') +
+  theme_classic()
+```
+
+Interestingly, it does not seem that the seasons of the show are clustered as strongly as one might think they would be in terms of the episode ratings. There does seem to be somewhat of a trend of later episodes getting better ratings than earlier episodes This is really clear to see with seasons 5, 6, and 7. Though the other series generally have higher ratings for later episodes than for earlier episodes.
+
+
+```{r}
+
+plot(x=var_rtngs_by_sn$season,
+     y=var_rtngs_by_sn$variance_of_ratings_by_season,
+     main= 'Variance of episode ratings by season',
+     xlab='Season',
+     ylab='Variance')
+```
+
+Season 7 has the most variance in the episode ratings of its season.
+
+```{r}
+numb_of_characters <- unlist(nchar(ep_scripts))
+hist(numb_of_characters)
+
+new_dat <- eps_dat
+
+new_dat$numb_char <- numb_of_characters
+
+
+# plot of number of characters in each episode script by season
+ggplot(new_dat) + 
+  geom_point(aes(x=episode_number,y=numb_char,color=factor(season)),size=2) +
+  labs(x='Episode', y='Number of Characters') + ggtitle('Number of characters 
+                                                        in episode script by
+                                                        season') +
+  theme_bw()
+
+```
+It seems that later episodes have scripts with less number of characters. There is also not very clear clustering in terms of the season. That there is not very much clustering in terms of the season suggests that there might be other important dimensions to clustion the data, liek the words that appear across all of the scripts. 
+
+
+## Prepearing dataset for modeling
+
+I are interested in the question of whether an episode's script can be helpful in predicting its rating, so I create a term frequency matrix to have a data set with the word counts of each word that occurs across all of the scripts. 
+
+```{r message=FALSE, warning=FALSE}
+eps_script_split <- str_split(lowercase_scripts, ".")
+eps_script_split <- str_split(lowercase_scripts, "\n")
+
+
+blob <- rep(NA, length(eps_script_split))
+list_of_dfs <- vector(mode='list',length=length(eps_script_split))
+
+for(i in seq_along(eps_script_split)){
+  blob <-paste(eps_script_split[[i]], collapse = '')
+  udpipe_out <- udpipe_annotate(eng_model,
+                              x=blob,
+                              tagger='default',
+                              parser='none')
+  lem_df <- as.data.frame(udpipe_out)
+  word_counts_df <- as.data.frame(as.list(table(lem_df$lemma)))
+  list_of_dfs[[i]] <- word_counts_df
+  }
+
+final_df <- bind_rows(list_of_dfs)
+
+final_df1 <- final_df
+
+
+dim(final_df)
+
+
+# final_df[is.na(final_df)] <- 0
+```
+
+```{r}
+head(final_df[,1:10])
+```
+I inspect how frequent each word is across the term frequency matrix that I created. It does not seem that a substantial proportion of words appear across all of the documents. 
+```{r}
+
+perc_not_na <- apply(final_df1, 2, function(x) mean(!is.na(x)))
+hist(
+    perc_not_na, 
+    xlab = "Frequency of word in documents",
+    ylab = "Number of words",
+    main = "Histogram of word frequency across documents"
+)
+
+```
+
+
+
+
+# Modeling
+I fit multiple models to predict an episode's rating based on its script, treating each word's occurence as a feature in our model.
+
+## Lasso Regression + Regression
+The term frequency matrix that I created contains `r `ncol(final_df)`columns but only `r `nrow(final_df)` rows, meaning that I cannot utilize traditional regression methods, since such methods require that the number of rows not be exceed by the number of columns. 
+
+I will utilize lasso regression, which is a kind of regression that shrinks as many coefficients as possible down to zero, allowing us to select the coefficients that do not have zero coefficients and use such coefficients in other models. I hope that this allows us to shrink down the number of features rtha
+
+I first iterate through different lambda values, which control the extent to which the coefficients are reduced to zero, to find the value that minimizes the mean-squared error. The value of the shrinkage hyper parameter that does this is betIen the log(-4) and the log(-2)
+
+```{r}
+final_df[is.na(final_df)] <- 0
+
+ls <- cv.glmnet(
+    as.matrix(final_df), eps_dat$rating,
+    alpha = 1, lambda = 10^seq(-5, 0, length.out=50)
+)
+plot(ls)
+
+```
+
+I identify the coefficients that are greater than zero. There are 50 of such coefficients. It seems that the lasso model was successful in shrinking down the number of features in our dataset. 
+
+```{r}
+k <- which(ls$lambda == ls$lambda.1se)
+ls_coefs <- ls$glmnet.fit$beta[, k]
+print(paste(
+    'Proportion of 0 coefficients:', mean(ls_coefs == 0)
+))
+
+ls_coefs_top <- sort(abs(ls_coefs), decreasing = TRUE)[1:50]
+print(names(ls_coefs_top[ls_coefs_top > 0]))
+
+
+
+```
+
+I utilize the coefficients that are not zero in a multiple regression model to see to what extent I can predict the episode's rating given the requency of words in an episode's script.
+
+```{r}
+coefs_not_zero <- ls_coefs[ls_coefs!=0]
+
+lasso_features <- names(coefs_not_zero)
+
+x_matrix <- as.matrix(final_df[ , names(final_df) %in% lasso_features])
+
+dim(x_matrix)
+
+fit1 <- lm(eps_dat$rating~x_matrix)
+
+summary(fit1)
+
+plot(fit1)
+
+
+
+```
+
+The RSE was 0.2756. It does seem that one can predict an episode's rating based off of it's text. Moreover, the model explains nearly 96% of the variation of the ratings given the scripts' words. 
+
+I see which words are associated with an increase in the ratings, as these words might provide insight into what star wars the clone wars fans like.
+
+```{r}
+coefs <- coef(fit1)
+#coefs[coefs > 0]
+
+sort(coefs[coefs > 0],decreasing=TRUE)
+```
+
+Because of the somewhat poor quality of the data, I was not able to make sense of all of the coefficients, though what stands out is that words like 'rex', 'maul,'krell', and 'darth' Ire estimated by the model to have a positive effect on the the score that an episode received. These coefficients that I have identified are all characters. The characters Rex and Krell are associated with clones, and since Star Wars the Clone Wars is supposed to be about the clone troopers fighting alongside Jedi, it makes sense that these words are estimated to increase the score that an episode received by the linear regression model. 
+
+The words 'darth' and 'maul' are Ire also estimated to have a positive effect on the rating that an episode received.These words are also associated with characters, specifically sith characters that are largely antagonists to the jedi and clones that the series mainly focus on. The fact that clones and sith characters, who often are engaged in battle when portrayed in the series, suggests that episodes that feature action scenes are preferred by vieIrs of the series.
+
+This is further confirmed by the fact that 'treasonagainst', which I interpret to mean treason against, was featured in episodes with action packed scenes like the series finale *Victory and Death* (Season 7, episode 12) and *Carnage of Krell* (Season 4, episode 10). Not the mention that the coefficient 'jedi.' is also estimated to have a positive effect on an episode's ratings, and jedi are characters that nearly always appear before action scenes occur, since they are effectively the Star Wars' universe Jedi and often engage in fights and battles with other charcters, alongside clones. 
+
+
+interestingly, some of the coefficients that the model estimates to have a positive effect on an episode's score are not necessarily associated with action scenes. Coefficients like 'jurisidiction', 'amidalas', and 'accord' are words that generally occur in episodes in which the politics of the CLone Wars universe are explored. I interpret 'amidalas' to refer to Senator Padme Amidala, who vocally opposes the war that the series highlights. The terms jurisdictional and accord generally occur in episodes in which senators and other government officals give speeches. These episodes are often full of drama. These terms being estimated by the model to have a positive effect on a episode's ratings suggest that Star Wars fans might care to see (political drama), as Ill as action
+
+I also examine which words are estimated by the model to have a negative effect on an episode's ratings.
+
+```{r}
+
+sort(coefs[coefs < 0],decreasing=F)
+```
+
+Terms like senator, amidala, representative, king, and agree are estimated to have a negative effect on an episode's rating, suggesting that Star Wars fans are actually not very interested in exploring the politics/diplomatic relations and negotiations of the Clone Wars universe.That amidala appears as a positive coefficient and negative coefficient indeed suggests that politics polarizes fans. This is not that surprising when considering that politics is often polarizing in real life. Writers tr Disney might want to carefully approach the issue of politics for those who work on Star Wars related content.  
+
+
+
+## Clustering
+
+Our exploratory data analysis revealed that the ratings Iren't clustered by seasons to the degree that you might expect. I explore other ways that the data might be clustered through a clustering algorithm. 
+
+I create a term frequency–inverse document frequency for the purposes of clustering the data into different dimensions and normalziing the data such that the most frequent terms for a row are assinged a higher Iight than lesser used terms. 
+
+```{r}
+
+
+# tf_idf
+
+#head(final_df1)
+N <- nrow(final_df1)
+nt <- apply(final_df1, 2, function(x) sum(!is.na(x)))
+
+
+# idf
+idf <- log(N/nt)
+idf_mat <- matrix(rep(idf,N), byrow=T,ncol=length(idf))
+
+
+# tf
+tf <- final_df1/apply(final_df1,1,max, na.rm=T)
+
+tfidf <- tf*idf_mat
+
+class(tfidf)
+
+dim(tfidf)
+
+tfidf1 <- tfidf
+head(tfidf[,1:10])
+head(tfidf1[,1:10])
+
+
+
+tfidf1[is.na(tfidf1)] <- 0
+```
+
+### Preparing dataset for clustering
+
+I identify words that are stopwords, as these are words that are unlikely to be meaningful or convey information about the characters present in an episode nor the context that it occurs in. 
+
+I remove words that seem as uninformative as stop words by removing the words with a maximum tdf_idf score across all of the documents lower than the maximum tdf-idf score of the stopwords. The tdf_idf score that we computed earlier effectively measure how important a word is to a particular document in showing the occurrence of a token normalized by the occurrence of the most frequently used token in the letter
+
+```{r}
+
+object_of_maxes <- apply(tfidf1, 2, max,na.rm=T)
+
+lemm_token <- rep(NA,length(object_of_maxes))
+max_tfidf_val<- rep(NA,length(object_of_maxes))
+
+for(i in seq_along(object_of_maxes)){
+ lemm_token[i] <- names(object_of_maxes[i])
+  max_tfidf_val[i] <- object_of_maxes[[i]]
+}
+
+mtfidf_1 <- data.frame(lemm_token = lemm_token, max = max_tfidf_val)
+
+maxes_stop_words <- mtfidf_1[mtfidf_1$lemm_token %in% stopwds,]
+
+max_token <- maxes_stop_words[which.max(maxes_stop_words$max),]
+max_token 
+
+max_val <- max_token$max
+
+
+
+
+impt_words_mtfidfs <- mtfidf_1[mtfidf_1$max >= max_val, ]
+
+
+
+impt_words_mtfidfs_ord <- impt_words_mtfidfs[order(-impt_words_mtfidfs$max),]
+
+top_tokens_df <- impt_words_mtfidfs_ord[1:40, ]
+top_tokens <- top_tokens_df$lemm_token
+
+top_tokens
+
+```
+
+
+
+# We wonder if clustering can separate out episodes that have ratigns higher than the median rating from episodes lower than the median ratings, which might indicate what Clone Wars fans have excitement about. 
+```{r}
+
+# create a dichotmous response variable
+response_var <- ifelse(eps_dat$rating >= med_rating, 1,0) 
+
+#response_var
+
+
+# cluster text by kmeans algorithm with, forcing points ot be 
+# assigned to two distinct groups
+
+tfidf_clust <- tfidf1[,names(tfidf) %in% top_tokens]
+head(tfidf_clust)
+
+kfit <- kmeans(tfidf_clust, 2)
+
+clusters <- kfit$cluster
+
+table(clusters,response_var)
+
+
+
+
+
+
+```
+
+
+The clustering algorithm was not able to accurately separate out the episode script by whether it had a rating that was above the median. 
+
+We inspect how the episode scripts were clustered.
+```{r}
+centers <- kfit$centers
+centers[,1:40]
+```
+The first cluster is mostly associated with action scenes, given that it is genreally centered around ors like trooper, luminara and [eeth] koth, (both jedis), and the creatures and opponents that troopers and jedi have fought like the 'zillo' beast, and Pre'visla' in episodes. 
+
+Teh second cluster is centered around terms like 'priestess', 'jar [jar binks]', and 'mesa' (a one of jar jar's phrases) which sugges that the second cluster does not focus on action as much since these characters do not appear in a lot of action heavy themes.
+
+
+# Summary/Conclusion
+
+While our analysis suggests that viewers of the show prefer episodes filled with action and episodes tha mainly are about jedi and padawanas, we must disucss the data's quality and how that likely impacted our anaylss. periods were place betwene amny words without a space and the spacing used to separate words was not consistent. It is possible that many of the words that we removed for having lower td-idf values than the stopwords were just misspelling of a similar group of words, for example jedi1 and jedi.. being removed. Thus we err on teh side of caution and do not say for sure that future Star Wars content with more action scenes and scenes that feature jedi might appease fans more, given this measurement error. Out analysis can be considered to be an additional data point in additon to the sales of action figures and tweets about the episodes that suggest that star wars chracters might prefer action scenens and characters that are clone trooopers and jedi. Not ot mention that we had to iterate through teh data for kmeans and for the lasso models, which somewhat arbitraily partitino the data and might interpet noise as a signal. 
+
+# Critique (Abigail Rooney)
+
+* My understanding is that the initial motivation Is to gain clarity into how Shakespeare’s plays ought to be grouped, specifically in terms of genre. I am guessing that in the field of Literature there are disputes about which plays belong to which genres
+* The datasets that were used were a text of Shakespeare’s plays sourced from MIT and also metadata pertaining to each play
+* The aspect that is considered data ming is attempting to validate and/or complicate the generous that the plays have been assigned to, based on features of the text. I, for one, am interested in which words might be suggestive of a text genre’s. The conclusion, to my understanding, is that the generous that many writers have identified mainly correspond to the clusters that Abigail specified via a clustering algorithm. 
+* I think that I would have looked at comments about the book to see whether those could provide information about the text’s genre but overall I think that the project is a very solid and ambitious one
+
