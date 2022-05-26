@@ -31,11 +31,14 @@ eps_dat <- read.csv('eps_df.csv',stringsAsFactors = F)
 
 # Background 
 
-For this project, I will analyze the episode scripts of all 133 episodes covering all 7 seasons of the Star Wars the Clone Wars TV series, with the goal of uncovering insights about the preferences of vieIrs who watch the show. A central question that I seek to ansIr in this project is whether an episode's script is predictive of its rating. It seems to me that a script might be useful for predicting an episode's rating because an episode's script might reveal the characters that an episode features and the context in which an episode takes place. VieIrs might prefer some characters and settings over others, which might explain a nontrivial portion of the variability in the ratings betIen different episodes. A strategy analyst at Disney might be interested in uncovering insights about which characters and settings vieIrs of the Star Wars the Clone Wars TV series prefer because such insights might position them to better market toys and have a more informed idea about which future projects might satisfy Star Wars fans, which might help analysts to identify opportunities for revenue growth. I am more interested in the question of whether it is possible to accurately predict an episode's rating based on its text and in the insights the prediction might unconver, being a fan of the show, though  I recognize the business value of this project.   
+For this project, I will analyze the episode scripts of all 133 episodes covering all 7 seasons of the Star Wars the Clone Wars TV series, with the goal of uncovering insights about the preferences of viewers who watch the show. A central question that I seek to answer in this project is whether an episode's script is predictive of its rating. It seems to me that a script might be useful for predicting an episode's rating because an episode's script might reveal the characters that an episode features and the context in which an episode takes place. viewers might prefer some characters and settings over others, which might explain a nontrivial portion of the variability in the ratings between different episodes. 
+A strategy analyst at Disney might be interested in uncovering insights about which characters and settings viewers of the Star Wars the Clone Wars TV series prefer because such insights might position them to better market toys and have a more informed idea about which future projects might satisfy Star Wars fans, which might help analysts to identify opportunities for revenue growth. Moreover, analyzing scripts of Star Wars the Clone Wars and other Star Wars media might provide additional data points for which characters and settings fans of the Star Wars franchise prefer, besides that of toy sales and social media fan content pertaining to Star Wars media. I am more interested in the question of whether it is possible to accurately predict an episode's rating based on its text and in the insights the prediction might uncover, being a fan of the show myself, though  I recognize the business value of this project.   
 
 ## Data Collection Process
 
-For the purposes of this project, I will utilize two data sets in my analysis. The first dataset that I collected pertains to the IMDB ratings of each episode, which are submitted by vieIrs. The IMDB ratings of each episode was scraped from the IMDB Ibsite by using a python script, since I know of no API wrapper for R that could be used to retrieve the ratings for each episode. The second dataset that I collected for the purposes of this project Ire the scripts of each episode, which I collected from the Ibsite https://subslikescript.com/series/Star_Wars_The_Clone_Wars-458290 . It is to my understanding that these scripts Ire put together by fans of the show, since there was no mention of any automated technologies that was used to collect the scripts. Ideally, I would have preferred to use scripts that Ire provided by Disney, the company that owns the Star Wars Clone Wars TV Show, since such a data set would not just be official but also more standardizes, being less likely to contain typos and errors and less likely to have inconsistencies in how the scripts are done and formatted. Episode scripts from sources where the scripts are crowd sourced by people passionate about the series are likely to have inconsistencies because multiple authors often contribute to putting together the scripts. 
+For the purposes of this project, I will utilize two data sets in my analysis. The first dataset that I collected pertains to the IMDB ratings of each episode, which are submitted by viewers. The IMDB ratings of each episode was scraped from the IMDB website by using a python script, since I know of no API wrapper for R that could be used to retrieve the ratings for each episode. The second data set that I collected for the purposes of this project are the scripts of each episode, which I collected from the website https://subslikescript.com/series/Star_Wars_The_Clone_Wars-458290 . 
+
+It is to my understanding that these scripts were compiled by fans of the show, since there was no mention of any automated technologies employed to collect the scripts nor any mention of the scripts being officially provided by the production company. Ideally, I would have preferred to use scripts that were provided by Lucasfilm (subsidiary of Disney), the company that produces the Star Wars Clone Wars TV Show, since such a data set would not just be official but also more standardized, which in being less likely to contain typos and errors and less likely to have inconsistencies in how the scripts are done and formatted might reduce the chance of their being any measurement error in the analysis. Episode scripts from sources where the scripts are crowd sourced by people passionate about the series are likely to have inconsistencies because multiple authors often contribute to putting together the scripts. 
 
 ## About the Data
 
@@ -46,7 +49,7 @@ The columns are:
 `season`: The season that an episode belongs to
 `episode_number` : The episode's episode number
 `title` : The episode's title
-`rating`; The episode's rating, which I will generally treat as a depednednt vairable for the prediction task that I are intersted in.
+`rating`; The episode's rating, which I will generally treat as a dependent variable for the prediction task that I am interested in.
 
 ```{r about the IMDB ratings data}
 dim(eps_dat)
@@ -64,14 +67,17 @@ head(ep_scripts,1)
 # EDA
 
 ## Data Cleaning
-I have some more cleaning to do with the episode scripts text. I make sure all words are loIrcase. I will resume cleaning the text when I create our term frequency matrix, in preparation for building a model to predict en episode's ratings based on its script 
+Before any analysis can be done on the episode scripts, the scripts need to be cleaned some more. For the pruposes of cleaning the scripts, I make sure all words are lowercase.
+
+I will resume cleaning the text when I create our term frequency matrix, in preparation for building a model to predict en episode's ratings based on its script 
 ```{r}
 lowercase_scripts <- tolower(ep_scripts)
 ```
 
 ## Exploring the data and its complexities 
 
-I use the data containg the ratings to get a sense of how the ratings are distriuted. 
+I ask a few questions to help me get a sense of the complexities within the ratings data and how the ratings are are distributed with respect to the show's seasons and episodes. 
+
 ```{r}
 # Which episode has the highest rating? What season does it belong to? 
 eps_dat[which.max(eps_dat$rating),
@@ -116,7 +122,7 @@ med_rtng_by_sn[which.min(med_rtng_by_sn$median_rating_by_season),'season']
 
 ```
 
-I are also interested in the variability of episode ratings. If the episode ratings do not vary to a significant degree, then prediction might not be useful or meaningful.
+I am also interested in the variability of episode ratings. If the episode ratings do not vary to a significant degree, then prediction might not be useful or meaningful.
 ```{r}
 
 # How much do the ratings vary?
@@ -143,7 +149,7 @@ var_rtngs_by_sn[which.min(var_rtngs_by_sn$variance_of_ratings_by_season),
 
 ### Visualizing Data Complexities 
 
-The ratings are distributed in a nearly normal manner, which suggests that regression migth be appropriate for the predictino task.
+The ratings are distributed in a nearly normal manner, which suggests that regression is appropriate for the predictive task. 
 ```{r}
 hist(eps_dat$rating,
      xlab = 'Rating',
@@ -161,7 +167,7 @@ ggplot(eps_dat) +
   theme_classic()
 ```
 
-Interestingly, it does not seem that the seasons of the show are clustered as strongly as one might think they would be in terms of the episode ratings. There does seem to be somewhat of a trend of later episodes getting better ratings than earlier episodes This is really clear to see with seasons 5, 6, and 7. Though the other series generally have higher ratings for later episodes than for earlier episodes.
+Interestingly, it does not seem that the seasons of the show are clustered as strongly as one might think they would be in terms of the episode ratings. There does seem to be somewhat of a trend of later episodes in a season getting better ratings than earlier episodes in a season. This trend is really apparent in seasons 5, 6, and 7, though many of the seasons generally have higher ratings for later episodes than for earlier episodes.
 
 
 ```{r}
@@ -193,12 +199,12 @@ ggplot(new_dat) +
   theme_bw()
 
 ```
-It seems that later episodes have scripts with less number of characters. There is also not very clear clustering in terms of the season. That there is not very much clustering in terms of the season suggests that there might be other important dimensions to clustion the data, liek the words that appear across all of the scripts. 
+It seems that later episodes have scripts with less number of characters. There is also not very clear clustering in terms of the season. That there is not very much clustering in terms of the season suggests that there might be other important dimensions to cluster the data by, like the words that appear across all of the scripts. 
 
 
 ## Prepearing dataset for modeling
 
-I are interested in the question of whether an episode's script can be helpful in predicting its rating, so I create a term frequency matrix to have a data set with the word counts of each word that occurs across all of the scripts. 
+I am interested in the question of whether an episode's script can be helpful in predicting its rating, so I create a term frequency matrix to have a data set with the word counts of each word that occurs across all of the scripts. 
 
 ```{r message=FALSE, warning=FALSE}
 eps_script_split <- str_split(lowercase_scripts, ".")
@@ -233,7 +239,8 @@ dim(final_df)
 ```{r}
 head(final_df[,1:10])
 ```
-I inspect how frequent each word is across the term frequency matrix that I created. It does not seem that a substantial proportion of words appear across all of the documents. 
+
+I inspect how frequent each word is across the term frequency matrix that I created. It does not seem that a substantial proportion of words appear across all of the documents.
 ```{r}
 
 perc_not_na <- apply(final_df1, 2, function(x) mean(!is.na(x)))
@@ -250,14 +257,14 @@ hist(
 
 
 # Modeling
-I fit multiple models to predict an episode's rating based on its script, treating each word's occurence as a feature in our model.
+I fit multiple models to predict an episode's rating based on its script, treating each word's occurrence as a feature in our model.
 
 ## Lasso Regression + Regression
 The term frequency matrix that I created contains `r `ncol(final_df)`columns but only `r `nrow(final_df)` rows, meaning that I cannot utilize traditional regression methods, since such methods require that the number of rows not be exceed by the number of columns. 
 
 I will utilize lasso regression, which is a kind of regression that shrinks as many coefficients as possible down to zero, allowing us to select the coefficients that do not have zero coefficients and use such coefficients in other models. I hope that this allows us to shrink down the number of features rtha
 
-I first iterate through different lambda values, which control the extent to which the coefficients are reduced to zero, to find the value that minimizes the mean-squared error. The value of the shrinkage hyper parameter that does this is betIen the log(-4) and the log(-2)
+I first iterate through different lambda values, which control the extent to which the coefficients are reduced to zero, to find the value that minimizes the mean-squared error. The value of the shrinkage hyper parameter that does this is between the log(-4) and the log(-2)
 
 ```{r}
 final_df[is.na(final_df)] <- 0
@@ -286,7 +293,7 @@ print(names(ls_coefs_top[ls_coefs_top > 0]))
 
 ```
 
-I utilize the coefficients that are not zero in a multiple regression model to see to what extent I can predict the episode's rating given the requency of words in an episode's script.
+I utilize the coefficients that are not zero in a multiple regression model to see to what extent I can predict the episode's rating given the frequency of words in an episode's script.
 
 ```{r}
 coefs_not_zero <- ls_coefs[ls_coefs!=0]
@@ -318,14 +325,14 @@ coefs <- coef(fit1)
 sort(coefs[coefs > 0],decreasing=TRUE)
 ```
 
-Because of the somewhat poor quality of the data, I was not able to make sense of all of the coefficients, though what stands out is that words like 'rex', 'maul,'krell', and 'darth' Ire estimated by the model to have a positive effect on the the score that an episode received. These coefficients that I have identified are all characters. The characters Rex and Krell are associated with clones, and since Star Wars the Clone Wars is supposed to be about the clone troopers fighting alongside Jedi, it makes sense that these words are estimated to increase the score that an episode received by the linear regression model. 
+Because of the somewhat poor quality of the data, I was not able to make sense of all of the coefficients, though what stands out is that words like 'rex', 'maul,'krell', and 'darth' are estimated by the model to have a positive effect on the the score that an episode received. These coefficients that I have identified are all characters. The characters Rex and Krell are associated with clones, and since Star Wars the Clone Wars is supposed to be about the clone troopers fighting alongside Jedi, it makes sense that these words are estimated to increase the score that an episode received by the linear regression model. 
 
-The words 'darth' and 'maul' are Ire also estimated to have a positive effect on the rating that an episode received.These words are also associated with characters, specifically sith characters that are largely antagonists to the jedi and clones that the series mainly focus on. The fact that clones and sith characters, who often are engaged in battle when portrayed in the series, suggests that episodes that feature action scenes are preferred by vieIrs of the series.
+The words 'darth' and 'maul' are also estimated to have a positive effect on the rating that an episode received.These words are also associated with characters, specifically sith characters that are largely antagonists to the jedi and clones that the series mainly focus on. The fact that clones and sith characters, who often are engaged in battle when portrayed in the series, suggests that episodes that feature action scenes are preferred by vieIrs of the series.
 
-This is further confirmed by the fact that 'treasonagainst', which I interpret to mean treason against, was featured in episodes with action packed scenes like the series finale *Victory and Death* (Season 7, episode 12) and *Carnage of Krell* (Season 4, episode 10). Not the mention that the coefficient 'jedi.' is also estimated to have a positive effect on an episode's ratings, and jedi are characters that nearly always appear before action scenes occur, since they are effectively the Star Wars' universe Jedi and often engage in fights and battles with other charcters, alongside clones. 
+This is further confirmed by the fact that 'treasonagainst', which I interpret to mean treason against, was featured in episodes with action packed scenes like the series finale *Victory and Death* (Season 7, episode 12) and *Carnage of Krell* (Season 4, episode 10). Not the mention that the coefficient 'jedi.' is also estimated to have a positive effect on an episode's ratings, and jedi are characters that nearly always appear before action scenes occur, since they are effectively warriors in the Star Wars' universe and often engage in fights and battles with other characters, usually alongside clones. 
 
 
-interestingly, some of the coefficients that the model estimates to have a positive effect on an episode's score are not necessarily associated with action scenes. Coefficients like 'jurisidiction', 'amidalas', and 'accord' are words that generally occur in episodes in which the politics of the CLone Wars universe are explored. I interpret 'amidalas' to refer to Senator Padme Amidala, who vocally opposes the war that the series highlights. The terms jurisdictional and accord generally occur in episodes in which senators and other government officals give speeches. These episodes are often full of drama. These terms being estimated by the model to have a positive effect on a episode's ratings suggest that Star Wars fans might care to see (political drama), as Ill as action
+Interestingly, some of the coefficients that the model estimates to have a positive effect on an episode's score are not necessarily associated with action scenes. Coefficients like 'jurisidiction', 'amidalas', and 'accord' are words that generally occur in episodes in which the politics of the CLone Wars universe are explored. I interpret 'amidalas' to refer to Senator Padme Amidala, who vocally opposes the war that the series explores. The terms jurisdictional and accord generally occur in episodes in which senators and other government officials give speeches. These episodes are often full of drama. These terms being estimated by the model to have a positive effect on a episode's ratings suggest that Star Wars fans might care to see (political drama), as Ill as action
 
 I also examine which words are estimated by the model to have a negative effect on an episode's ratings.
 
@@ -334,13 +341,13 @@ I also examine which words are estimated by the model to have a negative effect 
 sort(coefs[coefs < 0],decreasing=F)
 ```
 
-Terms like senator, amidala, representative, king, and agree are estimated to have a negative effect on an episode's rating, suggesting that Star Wars fans are actually not very interested in exploring the politics/diplomatic relations and negotiations of the Clone Wars universe.That amidala appears as a positive coefficient and negative coefficient indeed suggests that politics polarizes fans. This is not that surprising when considering that politics is often polarizing in real life. Writers tr Disney might want to carefully approach the issue of politics for those who work on Star Wars related content.  
+Terms like senator, amidala, representative, king, and agree are estimated to have a negative effect on an episode's rating, suggesting that Star Wars fans might find the politics of the Clone Wars universe somewhat polarizing, considering that earlier we learned that some words associated with Clone Wars universe politics were estimated by the regression model to have a positive effect on an episode's rating. This is not too suprising when considering that politics in the United States is often very polarizing. It seems that action scenes are a safer bet for appeasing Clone Wars fans than exploring the politics of the universe.
 
 
 
 ## Clustering
 
-Our exploratory data analysis revealed that the ratings Iren't clustered by seasons to the degree that you might expect. I explore other ways that the data might be clustered through a clustering algorithm. 
+Our exploratory data analysis revealed that the ratings aren't clustered by seasons to the degree that you might expect. I explore other ways that the data might be clustered through a clustering algorithm. 
 
 I create a term frequency–inverse document frequency for the purposes of clustering the data into different dimensions and normalziing the data such that the most frequent terms for a row are assinged a higher Iight than lesser used terms. 
 
@@ -422,10 +429,10 @@ top_tokens
 
 
 
-# We wonder if clustering can separate out episodes that have ratigns higher than the median rating from episodes lower than the median ratings, which might indicate what Clone Wars fans have excitement about. 
+We wonder if clustering can separate out episodes that have ratings higher than the median rating from episodes lower than the median ratings, which might indicate what Clone Wars fans have excitement about. 
 ```{r}
 
-# create a dichotmous response variable
+# create a dichotomous response variable
 response_var <- ifelse(eps_dat$rating >= med_rating, 1,0) 
 
 #response_var
@@ -437,40 +444,31 @@ response_var <- ifelse(eps_dat$rating >= med_rating, 1,0)
 tfidf_clust <- tfidf1[,names(tfidf) %in% top_tokens]
 head(tfidf_clust)
 
-kfit <- kmeans(tfidf_clust, 2)
-
-clusters <- kfit$cluster
-
-table(clusters,response_var)
-
-
-
-
-
-
+dist_mat <- dist(tfidf_clust)
+h_out <- hclust(dist_mat, method = "ward.D")
+plot(h_out)
+h_clust <- cutree(h_out, k = 2)
 ```
 
+To get a sense as to how the scripts are being clustered by the clustering algorithm, the top ten words with the largest TF_IDF values across the documents in a particular cluster will be examined. 
 
-The clustering algorithm was not able to accurately separate out the episode script by whether it had a rating that was above the median. 
-
-We inspect how the episode scripts were clustered.
 ```{r}
-centers <- kfit$centers
-centers[,1:40]
+for (i in 1:2) {
+    mc_tfidf <- apply(tfidf_clust[h_clust == i,], 2, max)
+    top_words <- tail(sort(mc_tfidf), 10)
+    print(paste("Top words in cluster", i))
+    print(names(top_words))    
+}
+
+
+table(h_clust,response_var)
 ```
-The first cluster is mostly associated with action scenes, given that it is genreally centered around ors like trooper, luminara and [eeth] koth, (both jedis), and the creatures and opponents that troopers and jedi have fought like the 'zillo' beast, and Pre'visla' in episodes. 
+The first cluster is mostly associated with action scenes, given that it is generally centered around words like trooper, pyke and zillo, which are references to characters and character types that occur in some of the series most action packed scenes.
 
-Teh second cluster is centered around terms like 'priestess', 'jar [jar binks]', and 'mesa' (a one of jar jar's phrases) which sugges that the second cluster does not focus on action as much since these characters do not appear in a lot of action heavy themes.
-
+The second cluster includes many terms that are also in the first cluster, indicating that the clustering algorithm was not able to effectively distinguish between episodes that scored above the median episode score and episodes that scored below the median episode rating based on the words with the highest 40 tf-idf values. Better results may have been achieveid if we selected the words to cluster on based on a lasso regression model and performance using a naive bayes classifier. 
 
 # Summary/Conclusion
 
-While our analysis suggests that viewers of the show prefer episodes filled with action and episodes tha mainly are about jedi and padawanas, we must disucss the data's quality and how that likely impacted our anaylss. periods were place betwene amny words without a space and the spacing used to separate words was not consistent. It is possible that many of the words that we removed for having lower td-idf values than the stopwords were just misspelling of a similar group of words, for example jedi1 and jedi.. being removed. Thus we err on teh side of caution and do not say for sure that future Star Wars content with more action scenes and scenes that feature jedi might appease fans more, given this measurement error. Out analysis can be considered to be an additional data point in additon to the sales of action figures and tweets about the episodes that suggest that star wars chracters might prefer action scenens and characters that are clone trooopers and jedi. Not ot mention that we had to iterate through teh data for kmeans and for the lasso models, which somewhat arbitraily partitino the data and might interpet noise as a signal. 
+While our analysis suggests that viewers of the show prefer episodes filled with action and episodes thatmainly are about jedi, padawans, and clone troopers we must discuss the data's poor quality and how that likely impacted our analysis. Periods were placed between many words without a space and the spacing used to separate words was not consistent. It is possible that many of the words that we removed for having lower td-idf values than the stopwords were just misspelling of a similar group of words, for example jedi1 and jedii being removed though both semantically mean jedi. Revisiting this project, one might attempt to correct mispellings using cosine similarity or other distance measures in attempt to address the messy episode script data. Thus, we err on the side of caution and do not say for sure that future Star Wars content with more action scenes and scenes that feature jedi might appease fans more, given this potential measurement error. This analysis ought to be considered to be an additional data point in addition to the sales of action figures and tweets about the episodes that might be suggestive of star wars characters fans might prefer 
 
-# Critique (Abigail Rooney)
-
-* My understanding is that the initial motivation Is to gain clarity into how Shakespeare’s plays ought to be grouped, specifically in terms of genre. I am guessing that in the field of Literature there are disputes about which plays belong to which genres
-* The datasets that were used were a text of Shakespeare’s plays sourced from MIT and also metadata pertaining to each play
-* The aspect that is considered data ming is attempting to validate and/or complicate the generous that the plays have been assigned to, based on features of the text. I, for one, am interested in which words might be suggestive of a text genre’s. The conclusion, to my understanding, is that the generous that many writers have identified mainly correspond to the clusters that Abigail specified via a clustering algorithm. 
-* I think that I would have looked at comments about the book to see whether those could provide information about the text’s genre but overall I think that the project is a very solid and ambitious one
 
