@@ -1,4 +1,4 @@
-# Predicting Star Wars the Clone Wars Episode 
+# Predicting Star Wars the Clone Wars Episode Ratings
 
 ## Goal
 
